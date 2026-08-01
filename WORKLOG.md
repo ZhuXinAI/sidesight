@@ -3,8 +3,8 @@
 ## Current status
 
 - Current phase: npm distribution and release automation
-- Current task: Commit and push the `v0.1.1` release to exercise GitHub Actions trusted publishing
-- Overall status: `sidesight@0.1.0` is published; the `0.1.1` package and tag are validated locally and ready for the workflow run
+- Current task: None; the `v0.1.1` trusted-publisher release succeeded
+- Overall status: `sidesight@0.1.1` is published and the GitHub Actions tag workflow is verified
 
 ## Completed
 
@@ -17,6 +17,7 @@
 - Added public npm publish metadata, version-aware package smoke checks, the tag-triggered OIDC publish workflow, and release instructions.
 - Published and verified the initial public `sidesight@0.1.0` package under the `ZhuXinAI/sidesight` repository.
 - Made CLI and MCP versions resolve from the published package metadata so release versions cannot drift from `package.json`.
+- Committed and pushed `v0.1.1`; GitHub Actions run `30691740343` published the package through OIDC trusted publishing.
 
 ## Validation
 
@@ -48,6 +49,10 @@
   - Result: Passed without npm metadata normalization warnings.
 - Command: `pnpm test:integration` and `pnpm test:acceptance` at version `0.1.1`
   - Result: Passed; 3 integration tests and all acceptance checks succeeded.
+- Command: GitHub Actions run `30691740343`
+  - Result: Passed; checkout, pnpm setup, Node setup, frozen install, build, unit tests, and `npm publish` all succeeded.
+- Command: `npm view sidesight@0.1.1 version dist.tarball gitHead --json`
+  - Result: Passed; registry reports version `0.1.1`, tarball URL, and git head `c1ddb97`.
 - Command: `pnpm test:live`
   - Result: Explicitly skipped because live-provider opt-in and credentials were not supplied.
 
@@ -67,11 +72,12 @@
 - Persist explicit setup credentials under `~/.sidesight/config.json` with `0700`/`0600` permissions; `SIDESIGHT_ALLOWED_DIRS` remains optional because the current working directory is the default allowlist.
 - Use npm OIDC trusted publishing from `.github/workflows/publish.yml`; no long-lived npm token is referenced.
 - Keep the organization workflow shape for the release smoke test: Node 24, frozen pnpm install, build, unit tests, and `npm publish` on `v*` tags.
+- The workflow emitted only a non-blocking Node 20 deprecation annotation from `pnpm/action-setup@v4); the action was forced to run on the Node 24 runner and the publish succeeded.
 
 ## Blockers
 
-- None before the tag-triggered workflow run.
+- None.
 
 ## Next task
 
-- Commit the validated release, push `main`, push `v0.1.1`, and monitor the GitHub Actions publish run.
+- Continue with the next versioned release when needed.
