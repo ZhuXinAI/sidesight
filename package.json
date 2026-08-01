@@ -1,11 +1,19 @@
 {
   "name": "sidesight",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vision sidecar for text-only coding agents.",
   "type": "module",
   "packageManager": "pnpm@10.27.0",
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZhuXinAI/sidesight.git"
+  },
+  "homepage": "https://github.com/ZhuXinAI/sidesight#readme",
+  "bugs": {
+    "url": "https://github.com/ZhuXinAI/sidesight/issues"
   },
   "bin": {
     "sidesight": "dist/cli.js",

@@ -1,12 +1,12 @@
 # SideSight release flow
 
-SideSight publishes the package from GitHub Actions when an annotated tag exactly matches the version in `package.json`:
+SideSight publishes the package from GitHub Actions when a `v*` tag is pushed:
 
 ```text
-v0.1.0  ->  package.json version 0.1.0  ->  npm sidesight@0.1.0
+v0.1.1  ->  package.json version 0.1.1  ->  npm sidesight@0.1.1
 ```
 
-The workflow is `.github/workflows/publish.yml`. It runs the full offline validation and uses npm OIDC trusted publishing. It does not use `NPM_TOKEN` or `NODE_AUTH_TOKEN`.
+The workflow is `.github/workflows/publish.yml`. It runs install, build, and unit tests, then uses npm OIDC trusted publishing. It also supports manual dispatch. It does not use `NPM_TOKEN` or `NODE_AUTH_TOKEN`.
 
 ## First local publish
 
@@ -20,7 +20,7 @@ pnpm test:pack
 npm publish --access public
 ```
 
-The current package version is `0.1.0`. A published version cannot be overwritten, so update `package.json` and use a new `vX.Y.Z` tag for every subsequent release.
+The first publication was `0.1.0`; this release is `0.1.1`. A published version cannot be overwritten, so update `package.json` and use a new `vX.Y.Z` tag for every subsequent release.
 
 ## Configure the npm trusted publisher
 
@@ -32,7 +32,7 @@ After `sidesight@0.1.0` exists on npm:
 4. Set the workflow filename to `.github/workflows/publish.yml`.
 5. Leave the environment empty; this workflow does not declare a GitHub environment.
 
-The publisher must match the repository and workflow filename exactly. The workflow already grants `id-token: write`, installs npm `11.5.1` for trusted publishing, checks the `v*` tag against `package.json`, and publishes with OIDC provenance.
+The publisher must match the repository and workflow filename exactly. The workflow grants `id-token: write`, uses Node 24's npm CLI, and publishes with OIDC trusted publishing.
 
 ## Subsequent releases
 

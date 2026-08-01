@@ -3,8 +3,8 @@
 ## Current status
 
 - Current phase: npm distribution and release automation
-- Current task: Authenticate the first npm publish and identify the GitHub repository for trusted-publisher setup
-- Overall status: Release plumbing is validated locally; remote publication is blocked by missing npm authentication and repository metadata
+- Current task: Commit and push the `v0.1.1` release to exercise GitHub Actions trusted publishing
+- Overall status: `sidesight@0.1.0` is published; the `0.1.1` package and tag are validated locally and ready for the workflow run
 
 ## Completed
 
@@ -15,6 +15,8 @@
 - Kept `SIDESIGHT_ALLOWED_DIRS` optional: current working directory is the default, and extra directories can be explicitly added when needed.
 - Added deterministic image, video, security, provider, CLI, MCP, acceptance, skill, and clean-package tests.
 - Added public npm publish metadata, version-aware package smoke checks, the tag-triggered OIDC publish workflow, and release instructions.
+- Published and verified the initial public `sidesight@0.1.0` package under the `ZhuXinAI/sidesight` repository.
+- Made CLI and MCP versions resolve from the published package metadata so release versions cannot drift from `package.json`.
 
 ## Validation
 
@@ -39,9 +41,13 @@
 - Command: `npm publish --dry-run --access public`
   - Result: Passed without npm metadata normalization warnings.
 - Command: `npm publish --access public`
-  - Result: Blocked; the current npm session is unauthenticated (`npm whoami` returned 401 and the publish returned registry PUT 404). The package remains unpublished.
-- Command: tag/version release check
-  - Result: Passed for `v0.1.0`.
+  - Result: Initial `sidesight@0.1.0` publication verified on npm; `npm view sidesight version` reports `0.1.0`.
+- Command: `pnpm test:pack` at version `0.1.1`
+  - Result: Passed clean temporary install, correct CLI version, and mocked provider command smoke checks.
+- Command: `npm publish --dry-run --access public` at version `0.1.1`
+  - Result: Passed without npm metadata normalization warnings.
+- Command: `pnpm test:integration` and `pnpm test:acceptance` at version `0.1.1`
+  - Result: Passed; 3 integration tests and all acceptance checks succeeded.
 - Command: `pnpm test:live`
   - Result: Explicitly skipped because live-provider opt-in and credentials were not supplied.
 
@@ -60,12 +66,12 @@
 - Keep remote media downloaded and validated locally even when a passthrough setting exists; this preserves the safer default and avoids blindly forwarding arbitrary URLs.
 - Persist explicit setup credentials under `~/.sidesight/config.json` with `0700`/`0600` permissions; `SIDESIGHT_ALLOWED_DIRS` remains optional because the current working directory is the default allowlist.
 - Use npm OIDC trusted publishing from `.github/workflows/publish.yml`; no long-lived npm token is referenced.
+- Keep the organization workflow shape for the release smoke test: Node 24, frozen pnpm install, build, unit tests, and `npm publish` on `v*` tags.
 
 ## Blockers
 
-- `npm whoami` returns 401, so the initial local publish cannot run until an npm account is authenticated.
-- This checkout has no `.git` directory or configured GitHub remote, and no `sidesight` repository was found under the authenticated GitHub user/orgs. The exact owner/repository is required for npm trusted-publisher configuration.
+- None before the tag-triggered workflow run.
 
 ## Next task
 
-- Authenticate npm, publish `sidesight@0.1.0`, then connect the exact GitHub repository to the trusted publisher and push a matching `v0.1.0` tag.
+- Commit the validated release, push `main`, push `v0.1.1`, and monitor the GitHub Actions publish run.

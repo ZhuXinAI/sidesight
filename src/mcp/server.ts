@@ -7,6 +7,7 @@ import { asSideSightError, redactSecrets } from "../core/errors.js";
 import { formatMarkdown } from "../core/output.js";
 import { detailLevelSchema, type DetailLevel, type NormalizedRegion, type VisionTaskId } from "../core/types.js";
 import { parseRegion, validateNormalizedRegion } from "../core/image.js";
+import { VERSION } from "../version.js";
 
 interface ToolSpec {
   name: string;
@@ -55,7 +56,7 @@ function argumentRegion(value: unknown): NormalizedRegion | undefined {
 }
 
 export function createMcpServer(config: ResolvedConfig): Server {
-  const server = new Server({ name: "sidesight", version: "0.1.0" }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "sidesight", version: VERSION }, { capabilities: { tools: {} } });
   const engine = new VisionEngine(config);
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: toolSpecs.map((spec) => ({ name: spec.name, description: spec.description, inputSchema: toolInputSchema(spec) })),

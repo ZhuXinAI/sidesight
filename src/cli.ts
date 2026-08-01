@@ -10,8 +10,9 @@ import { canonicalAllowedPath } from "./core/security.js";
 import { getConfigFilePath, profileDefaults, readUserConfig, resolveConfig, publicConfig, writeUserConfig, type ConfigOverrides, type UserConfigFile } from "./config.js";
 import { runDoctor, formatDoctor } from "./doctor.js";
 import { runMcpServer } from "./mcp/server.js";
+import { VERSION } from "./version.js";
 
-export const VERSION = "0.1.0";
+export { VERSION };
 
 type OptionValue = string | boolean;
 export interface ParsedCliArgs {

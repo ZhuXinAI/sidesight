@@ -159,7 +159,7 @@ node scripts/install-skill.mjs "$HOME/.agents/skills"
 
 The installer copies real files and does not create symlinks. The skill prefers DOM, accessibility trees, logs, and source data when those are available, then routes visual questions to the smallest appropriate SideSight command.
 
-Once this repository is open sourced under the `ZhuXinAI` organization, install the skill directly from GitHub with:
+Install the skill directly from the public `ZhuXinAI/sidesight` repository with:
 
 ```bash
 npx skills add ZhuXinAI/sidesight
