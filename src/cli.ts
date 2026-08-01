@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { asSideSightError, redactSecrets, usageError } from "./core/errors.js";
 import { parseRegion } from "./core/image.js";
-import { detailLevelSchema, type DetailLevel, type VisionTaskId } from "./core/types.js";
+import { detailLevelSchema, visionTaskIds, type DetailLevel, type VisionTaskId } from "./core/types.js";
 import { formatJson, formatMarkdown } from "./core/output.js";
 import { VisionEngine } from "./core/engine.js";
 import { canonicalAllowedPath } from "./core/security.js";
@@ -80,6 +80,46 @@ function environmentForArgs(args: ParsedCliArgs): NodeJS.ProcessEnv {
   return configFile ? { ...process.env, SIDESIGHT_CONFIG_FILE: configFile } : process.env;
 }
 
+const taskDescriptions: Record<VisionTaskId, string> = {
+  image: "General image analysis",
+  ui: "UI screenshot to implementation guidance",
+  ocr: "Faithful visible-text extraction",
+  diagnose: "Error screenshot diagnosis",
+  diagram: "Technical diagram understanding",
+  chart: "Chart and dashboard analysis",
+  diff: "Expected versus actual UI comparison",
+  video: "Video analysis with native input or bounded frames",
+};
+
+function commonOptionsText(): string {
+  return `Common options:
+  --question <text>          Focused question; use - to read it from stdin
+  --instructions-file <path> Additional guidance without replacing safety rules
+  --detail <auto|overview|normal|fine>
+  --region <x,y,w,h>         Normalized 0..1 region from the full original
+  --format <markdown|json>   Output format (default: markdown)
+  --output <path>            Also save the rendered result
+  --model <id>               Override SIDESIGHT_MODEL
+  --profile <name>           Override SIDESIGHT_PROFILE
+  --base-url <url>           Provider endpoint (setup or one command)
+  --api-key <key>            Provider key (setup or one command; never printed)
+  --allowed-dir <path>       Add the media directory to the allowlist
+  --config-file <path>       Use a specific saved config file
+  --ffmpeg-path <path>       Use a specific ffmpeg executable for video
+  --max-tokens <number>      Provider output limit
+  --timeout <seconds>        Provider/download timeout
+  --verbose                  Progress goes to stderr
+  --help`;
+}
+
+function mediaSourcesText(): string {
+  return `Media sources:
+  Local paths are preferred. HTTP(S) URLs, base64 data URIs, the literal
+  clipboard source on macOS, and the literal latest source are also supported.
+  Raw base64 without a data:<mime>;base64, prefix and host attachment objects
+  must be exported to a path or converted to a data URI first.`;
+}
+
 function helpText(): string {
   return `SideSight ${VERSION} — vision sidecar for text-only coding agents.
 
@@ -119,7 +159,108 @@ Common options:
 
 Configuration uses SIDESIGHT_API_KEY, SIDESIGHT_BASE_URL, SIDESIGHT_MODEL,
 SIDESIGHT_PROFILE, SIDESIGHT_ALLOWED_DIRS, and other SIDESIGHT_* limits.
+
+If provider setup is not complete, ask the user to run npx sidesight setup.
+Do not search the filesystem, shell profiles, or unrelated files for keys.
+
+Run sidesight <command> --help for command-specific help.
 `;
+}
+
+function taskHelpText(command: VisionTaskId): string {
+  const sourceUsage = command === "diff" ? "<expected> <actual>" : `<${command === "video" ? "video" : "image"}>`;
+  return `SideSight ${command} — ${taskDescriptions[command]}.
+
+Usage:
+  sidesight ${command} ${sourceUsage} [options]
+
+${mediaSourcesText()}
+
+${commonOptionsText()}
+
+Example:
+  sidesight ${command} ${command === "diff" ? "reference.png actual.png" : `${command}.png`} --question "Ask a focused visual question"
+`;
+}
+
+function commandHelpText(command: string, subcommand?: string): string {
+  if (visionTaskIds.includes(command as VisionTaskId)) return taskHelpText(command as VisionTaskId);
+  if (command === "setup") {
+    return `SideSight setup — save provider settings for future commands.
+
+Usage:
+  sidesight setup [options]
+
+Rerunnable setup preserves values omitted on later runs. API keys are stored
+under the owner-only config file and are never printed.
+
+Options:
+  --profile <name>           Provider profile (default: opencode-go)
+  --base-url <url>           OpenAI-compatible provider base URL
+  --model <id>               Multimodal vision model identifier
+  --api-key <key>            Provider key; never printed
+  --allowed-dir <path>       Add the media directory to the allowlist
+  --config-file <path>       Write to a specific config file
+  --help
+
+Example:
+  npx sidesight setup --profile opencode-go --api-key "your-key"
+`;
+  }
+  if (command === "config") {
+    if (subcommand === "init") {
+      return `SideSight config init — create a non-secret configuration template.
+
+Usage:
+  sidesight config init [--force] [--config-file <path>]
+
+The command never writes an API key. Use sidesight setup for provider
+credentials and sidesight config show to inspect redacted settings.
+`;
+    }
+    if (subcommand === "show") {
+      return `SideSight config show — display resolved non-secret configuration.
+
+Usage:
+  sidesight config show [--config-file <path>] [--profile <name>]
+
+The output reports only whether an API key is configured; it never prints the
+key itself.
+`;
+    }
+    return `SideSight config — inspect or create saved configuration.
+
+Usage:
+  sidesight config <init|show> [options]
+
+Subcommands:
+  init                        Create a non-secret config template
+  show                        Show resolved non-secret configuration
+
+Run sidesight config <subcommand> --help for details.
+`;
+  }
+  if (command === "doctor") {
+    return `SideSight doctor — diagnose local setup without a model call by default.
+
+Usage:
+  sidesight doctor [--live] [--format <markdown|json>]
+
+Use --live only when you want to send a small deterministic image to the
+configured provider.
+`;
+  }
+  if (command === "mcp") {
+    return `SideSight mcp — run the optional stdio MCP server.
+
+Usage:
+  sidesight mcp [provider options]
+
+Protocol messages are written to stdout. Diagnostics go to stderr. Provider
+settings come from npx sidesight setup, environment variables, or flags.
+`;
+  }
+  return helpText();
 }
 
 async function readStdin(): Promise<string> {
@@ -246,7 +387,11 @@ export async function runCli(argv: string[], io: CliIO = { stdout: (text) => pro
       io.stdout(`${VERSION}\n`);
       return 0;
     }
-    if (hasOption(parsed, "help") || !parsed.command) {
+    if (hasOption(parsed, "help")) {
+      io.stdout(parsed.command ? commandHelpText(parsed.command, parsed.positionals[0]) : helpText());
+      return 0;
+    }
+    if (!parsed.command) {
       io.stdout(helpText());
       return 0;
     }
@@ -282,7 +427,8 @@ export async function runCli(argv: string[], io: CliIO = { stdout: (text) => pro
   }
 }
 
-if (process.argv[1] && basename(process.argv[1]) === "cli.js") {
+const cliEntrypointNames = new Set(["cli.js", "sidesight", "sidesight.cmd"]);
+if (process.argv[1] && cliEntrypointNames.has(basename(process.argv[1]))) {
   const exitCode = await runCli(process.argv.slice(2));
   process.exitCode = exitCode;
 }

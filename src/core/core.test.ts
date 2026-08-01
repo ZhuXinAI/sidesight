@@ -3,6 +3,8 @@ import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { resolveConfig } from "../config.js";
+import { loadMedia } from "./media.js";
 import { composePrompt, parseModelPayload, promptRegistry } from "./prompts.js";
 import { canonicalAllowedPath, isPrivateAddress, safeMediaLabel, validateRemoteUrl } from "./security.js";
 import { cropFromOriginal, inspectImage, parseRegion } from "./image.js";
@@ -53,5 +55,15 @@ describe("media security and image processing", () => {
     const metadata = await sharp(crop.image).metadata();
     expect(metadata.width).toBe(50);
     expect(metadata.height).toBe(40);
+  });
+
+  it("accepts complete image data URIs but not raw base64 input", async () => {
+    const root = await mkdtemp(join(tmpdir(), "sidesight-data-uri-"));
+    const config = await resolveConfig({}, { SIDESIGHT_CONFIG_FILE: join(root, "config.json"), SIDESIGHT_BASE_URL: "http://localhost:8000/v1", SIDESIGHT_MODEL: "vision-test" }, root);
+    const buffer = await sharp({ create: { width: 2, height: 2, channels: 4, background: { r: 20, g: 40, b: 80, alpha: 1 } } }).png().toBuffer();
+    const dataUri = `data:image/png;base64,${buffer.toString("base64")}`;
+    const loaded = await loadMedia(dataUri, config, "image", root);
+    expect(loaded.kind).toBe("image");
+    await expect(loadMedia(buffer.toString("base64"), config, "image", root)).rejects.toThrow();
   });
 });

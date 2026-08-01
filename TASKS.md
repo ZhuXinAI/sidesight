@@ -40,3 +40,9 @@ The PRD and `ACCEPTANCE.md` are authoritative. Tasks are ordered by dependency a
 - [x] Add public npm metadata, version-aware package smoke checks, and a tag-triggered OIDC trusted-publisher workflow.
 - [x] Authenticate and publish the initial `sidesight@0.1.0` package.
 - [x] Verify the `v0.1.1` tag-triggered trusted-publisher workflow.
+
+## CLI and agent UX hardening
+
+- [x] Make the installed npm bin execute reliably through symlinks and expose root, command, and subcommand help without configuration.
+- [x] Make the Agent Skill request user-controlled `npx sidesight setup` and prohibit credential discovery scans.
+- [x] Document local paths, URLs, data URIs, clipboard input, and host attachment limitations in the skill and README.

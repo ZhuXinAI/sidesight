@@ -8,6 +8,10 @@ describe("SideSight skill", () => {
     expect(skill).toContain("sidesight ocr");
     expect(skill).toContain("sidesight diff");
     expect(skill).toContain("untrusted evidence");
+    expect(skill).toContain("npx sidesight setup");
+    expect(skill).toContain("Do not search the filesystem");
+    expect(skill).toContain("data:<mime>;base64");
+    expect(skill).toContain("clipboard");
     expect(skill).not.toContain("TODO");
   });
 });

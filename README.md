@@ -4,11 +4,11 @@
 
 ### For coding agents
 
-Install the SideSight skill with one command:
+Give your coding agent this instruction:
 
-```bash
-npx skills add ZhuXinAI/sidesight
-```
+> Read and install the skill here at [SKILL.md](https://github.com/ZhuXinAI/sidesight/blob/main/skills/sidesight/SKILL.md).
+
+If SideSight is not already configured, the skill will ask you to run `npx sidesight setup` before it uses a visual command. Do not have the agent search your files for provider keys.
 
 The skill routes screenshots, diagrams, charts, UI diffs, and videos to the right SideSight command.
 
@@ -114,6 +114,8 @@ Every task uses the same core engine. `--question -` reads a focused question fr
 
 Supported media sources are local PNG, JPEG, WebP, GIF (first frame), MP4, MOV, M4V, and WebM files; HTTP/HTTPS URLs; and validated base64 data URIs. `sidesight image latest` reads the newest image from `SIDESIGHT_DROP_DIR` or `./screenshots`. `clipboard` is supported on macOS when `pbpaste -Prefer png` can read a bitmap.
 
+Local paths are the preferred input for coding-agent workflows. A raw base64 string is not accepted; use a complete `data:<mime>;base64,...` URI. Codex/Claude image attachments are not automatically visible to the CLI as files, so export an attachment or clipboard image to a path (or provide a complete data URI) before invoking SideSight. The provider adapter creates base64 data URIs from validated media internally, but never logs them.
+
 ### Configuration
 
 Precedence is CLI flags, environment variables, saved user config, then profile defaults. `sidesight setup` writes provider settings to `~/.sidesight/config.json` with directory mode `0700` and file mode `0600`. Set `SIDESIGHT_CONFIG_DIR` or `SIDESIGHT_CONFIG_FILE` to use another location. Use `sidesight config init` to create a non-secret template and `sidesight config show` to inspect resolved values.
@@ -178,11 +180,9 @@ node scripts/install-skill.mjs "$HOME/.agents/skills"
 
 The installer copies real files and does not create symlinks. The skill prefers DOM, accessibility trees, logs, and source data when those are available, then routes visual questions to the smallest appropriate SideSight command.
 
-Install the skill directly from the public `ZhuXinAI/sidesight` repository with:
+If you are asking an agent to install the skill, use this prompt:
 
-```bash
-npx skills add ZhuXinAI/sidesight
-```
+> Read and install the skill here at [SKILL.md](https://github.com/ZhuXinAI/sidesight/blob/main/skills/sidesight/SKILL.md).
 
 ## Security and privacy
 

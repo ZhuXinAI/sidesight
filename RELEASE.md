@@ -3,7 +3,7 @@
 SideSight publishes the package from GitHub Actions when a `v*` tag is pushed:
 
 ```text
-v0.1.1  ->  package.json version 0.1.1  ->  npm sidesight@0.1.1
+v0.1.2  ->  package.json version 0.1.2  ->  npm sidesight@0.1.2
 ```
 
 The workflow is `.github/workflows/publish.yml`. It runs install, build, and unit tests, then uses npm OIDC trusted publishing. It also supports manual dispatch. It does not use `NPM_TOKEN` or `NODE_AUTH_TOKEN`.
@@ -20,7 +20,13 @@ pnpm test:pack
 npm publish --access public
 ```
 
-The first publication was `0.1.0`; this release is `0.1.1`. A published version cannot be overwritten, so update `package.json` and use a new `vX.Y.Z` tag for every subsequent release.
+The first publication was `0.1.0`; the prior release was `0.1.1`; this release is `0.1.2`. A published version cannot be overwritten, so update `package.json` and use a new `vX.Y.Z` tag for every subsequent release.
+
+## Release notes: 0.1.2
+
+- Fix the installed npm bin when invoked through a symlink.
+- Add root, command, and subcommand help that works without provider setup.
+- Make the Agent Skill request user-controlled setup and document supported media handoffs.
 
 ## Configure the npm trusted publisher
 

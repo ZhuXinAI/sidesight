@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
@@ -25,6 +25,12 @@ try {
   const help = await execFileAsync(executable, ["--help"], { cwd: installDirectory, maxBuffer: 4_000_000 });
   const version = await execFileAsync(executable, ["--version"], { cwd: installDirectory, maxBuffer: 4_000_000 });
   if (!help.stdout.includes("diagnose") || version.stdout.trim() !== packageJson.version) throw new Error("Packed executable smoke check failed");
+  const symlinkDirectory = join(directory, "bin");
+  await mkdir(symlinkDirectory);
+  const symlinkExecutable = join(symlinkDirectory, "sidesight");
+  await symlink(join(installDirectory, "node_modules", "sidesight", "dist", "cli.js"), symlinkExecutable);
+  const symlinkHelp = await execFileAsync(process.execPath, [symlinkExecutable, "--help"], { cwd: installDirectory, maxBuffer: 4_000_000 });
+  if (!symlinkHelp.stdout.includes("diagnose")) throw new Error("Symlinked executable smoke check failed");
   const imagePath = join(directory, "fixture.png");
   const { writeFile } = await import("node:fs/promises");
   await writeFile(imagePath, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));

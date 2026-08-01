@@ -34,6 +34,26 @@ function run(args) {
 try {
   const help = await run(["--help"]);
   if (help.code !== 0 || !help.stdout.includes("diagnose") || !help.stdout.includes("video")) throw new Error("CLI help acceptance failed");
+  const helpCommands = [
+    ["setup"],
+    ["image"],
+    ["ui"],
+    ["ocr"],
+    ["diagnose"],
+    ["diagram"],
+    ["chart"],
+    ["diff"],
+    ["video"],
+    ["doctor"],
+    ["mcp"],
+    ["config"],
+    ["config", "init"],
+    ["config", "show"],
+  ];
+  for (const command of helpCommands) {
+    const commandHelp = await run([...command, "--help"]);
+    if (commandHelp.code !== 0 || !commandHelp.stdout.includes("Usage:")) throw new Error(`Command help acceptance failed: ${command.join(" ")}`);
+  }
   const result = await run(["diagnose", image, "--format", "json", "--detail", "overview", "--question", "Read the error"]);
   if (result.code !== 0) throw new Error(`diagnose acceptance failed: ${result.stderr}`);
   const parsed = JSON.parse(result.stdout);

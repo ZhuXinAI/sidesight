@@ -16,6 +16,34 @@ These scenarios are executable through the repository scripts. Live-provider sce
 - Version prints the package version.
 - Runtime files do not depend on the source checkout.
 
+## Scenario: Root, command, and subcommand help without setup
+
+### Steps
+
+1. Run `sidesight --help`.
+2. Run `sidesight image --help`, `sidesight setup --help`, `sidesight doctor --help`, and `sidesight mcp --help`.
+3. Run `sidesight config --help`, `sidesight config init --help`, and `sidesight config show --help`.
+
+### Expected
+
+- Every command exits with code `0` and writes non-empty usage text to stdout.
+- Help does not require a provider key, call a provider, or inspect project files.
+- The installed npm bin prints the same help when invoked through its symlink.
+
+## Scenario: Agent setup and media handoff boundary
+
+### Steps
+
+1. Read `skills/sidesight/SKILL.md`.
+2. Give the skill an image task before setup has been confirmed.
+3. Provide a local path, a complete `data:<mime>;base64,...` URI, or the literal macOS `clipboard` source.
+
+### Expected
+
+- The skill asks the user to run `npx sidesight setup` and wait for confirmation.
+- The skill does not search files, shell profiles, keychains, environment files, or unrelated directories for credentials.
+- Local paths are preferred; raw base64 and opaque host attachment objects are rejected or exported to a path/data URI first.
+
 ## Scenario: Diagnose an error screenshot with a mocked provider
 
 ### Preconditions

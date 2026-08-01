@@ -23,6 +23,25 @@ describe("CLI parser", () => {
     expect(output).toContain("setup");
   });
 
+  it("prints command and subcommand help without resolving provider configuration", async () => {
+    const cases = [
+      { argv: ["setup", "--help"], expected: "Usage:\n  sidesight setup" },
+      { argv: ["image", "--help"], expected: "Usage:\n  sidesight image" },
+      { argv: ["diff", "--help"], expected: "Usage:\n  sidesight diff" },
+      { argv: ["doctor", "--help"], expected: "Usage:\n  sidesight doctor" },
+      { argv: ["mcp", "--help"], expected: "Usage:\n  sidesight mcp" },
+      { argv: ["config", "--help"], expected: "Usage:\n  sidesight config <init|show>" },
+      { argv: ["config", "init", "--help"], expected: "Usage:\n  sidesight config init" },
+      { argv: ["config", "show", "--help"], expected: "Usage:\n  sidesight config show" },
+    ];
+    for (const testCase of cases) {
+      let output = "";
+      const code = await runCli(testCase.argv, { stdout: (text) => { output += text; }, stderr: () => undefined });
+      expect(code, testCase.argv.join(" ")).toBe(0);
+      expect(output, testCase.argv.join(" ")).toContain(testCase.expected);
+    }
+  });
+
   it("persists setup settings securely and supports rerunning with partial updates", async () => {
     const directory = await mkdtemp(join(tmpdir(), "sidesight-setup-"));
     const configFile = join(directory, "config.json");

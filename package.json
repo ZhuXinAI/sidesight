@@ -1,6 +1,6 @@
 {
   "name": "sidesight",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Vision sidecar for text-only coding agents.",
   "type": "module",
   "packageManager": "pnpm@10.27.0",

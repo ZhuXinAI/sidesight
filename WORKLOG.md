@@ -2,9 +2,9 @@
 
 ## Current status
 
-- Current phase: npm distribution and release automation
-- Current task: None; the `v0.1.1` trusted-publisher release succeeded
-- Overall status: `sidesight@0.1.1` is published and the GitHub Actions tag workflow is verified
+- Current phase: v0.1.2 release
+- Current task: Commit, tag, and monitor the trusted-publisher workflow
+- Overall status: The validated CLI, skill, media-input, and packaging fixes are prepared for `sidesight@0.1.2`; the published registry version remains `0.1.1` until the tag workflow completes
 
 ## Completed
 
@@ -18,6 +18,11 @@
 - Published and verified the initial public `sidesight@0.1.0` package under the `ZhuXinAI/sidesight` repository.
 - Made CLI and MCP versions resolve from the published package metadata so release versions cannot drift from `package.json`.
 - Committed and pushed `v0.1.1`; GitHub Actions run `30691740343` published the package through OIDC trusted publishing.
+- Fixed the npm-bin entrypoint so direct execution through a `sidesight` symlink runs the CLI instead of exiting silently.
+- Added root, command, and `config` subcommand help that does not resolve provider configuration.
+- Updated the Agent Skill to request user-controlled `npx sidesight setup`, prohibit credential discovery scans, and explain local path, URL, data URI, clipboard, and host-attachment boundaries.
+- Replaced the README's agent-facing Skills CLI command with the direct `SKILL.md` installation prompt and documented media handoff behavior.
+- Prepared the `0.1.2` package version and release notes for the tag-triggered npm publication.
 
 ## Validation
 
@@ -55,6 +60,20 @@
   - Result: Passed; registry reports version `0.1.1`, tarball URL, and git head `c1ddb97`.
 - Command: `pnpm test:live`
   - Result: Explicitly skipped because live-provider opt-in and credentials were not supplied.
+- Command: `pnpm install --frozen-lockfile`
+  - Result: Passed.
+- Command: `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`
+  - Result: Passed.
+- Command: `pnpm test`
+  - Result: 19 unit tests passed, including command/subcommand help and data-URI input coverage.
+- Command: `pnpm build`
+  - Result: Passed.
+- Command: `pnpm test:integration`
+  - Result: 3 mocked integration tests passed.
+- Command: `pnpm test:acceptance`
+  - Result: Passed CLI root/command/subcommand help, mocked diagnose, JSON output, and safe config display scenarios.
+- Command: `pnpm test:pack`
+  - Result: Passed clean temporary install, help/version, symlinked-bin help, and mocked provider command smoke checks.
 
 ## Files changed
 
@@ -62,6 +81,7 @@
 - `skills/`, `.agents/`, and skill installer.
 - `scripts/` build, lint, format, acceptance, live, and packaging checks.
 - `README.md`, `TASKS.md`, `ACCEPTANCE.md`, `WORKLOG.md`, and package metadata.
+- `src/cli.ts`, `src/cli.test.ts`, `src/core/core.test.ts`, `scripts/pack.mjs`, `skills/sidesight/SKILL.md`, and the CLI/skill acceptance coverage.
 
 ## Decisions
 
@@ -73,6 +93,7 @@
 - Use npm OIDC trusted publishing from `.github/workflows/publish.yml`; no long-lived npm token is referenced.
 - Keep the organization workflow shape for the release smoke test: Node 24, frozen pnpm install, build, unit tests, and `npm publish` on `v*` tags.
 - The workflow emitted only a non-blocking Node 20 deprecation annotation from `pnpm/action-setup@v4); the action was forced to run on the Node 24 runner and the publish succeeded.
+- Use the repository's existing tag-triggered OIDC workflow for `0.1.2`; do not publish from a long-lived local npm token.
 
 ## Blockers
 
@@ -80,4 +101,4 @@
 
 ## Next task
 
-- Continue with the next versioned release when needed.
+- Push `main` and the annotated `v0.1.2` tag, monitor the workflow, and verify the npm registry package.
