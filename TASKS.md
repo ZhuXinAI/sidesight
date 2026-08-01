@@ -40,6 +40,7 @@ The PRD and `ACCEPTANCE.md` are authoritative. Tasks are ordered by dependency a
 - [x] Add public npm metadata, version-aware package smoke checks, and a tag-triggered OIDC trusted-publisher workflow.
 - [x] Authenticate and publish the initial `sidesight@0.1.0` package.
 - [x] Verify the `v0.1.1` tag-triggered trusted-publisher workflow.
+- [x] Publish and verify the `v0.1.2` tag-triggered trusted-publisher workflow.
 
 ## CLI and agent UX hardening
 

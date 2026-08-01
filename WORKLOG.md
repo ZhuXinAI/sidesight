@@ -2,9 +2,9 @@
 
 ## Current status
 
-- Current phase: v0.1.2 release
-- Current task: Commit, tag, and monitor the trusted-publisher workflow
-- Overall status: The validated CLI, skill, media-input, and packaging fixes are prepared for `sidesight@0.1.2`; the published registry version remains `0.1.1` until the tag workflow completes
+- Current phase: v0.1.2 release complete
+- Current task: None; the trusted-publisher workflow and registry package are verified
+- Overall status: `sidesight@0.1.2` is published and the tag-triggered GitHub Actions workflow succeeded
 
 ## Completed
 
@@ -23,6 +23,7 @@
 - Updated the Agent Skill to request user-controlled `npx sidesight setup`, prohibit credential discovery scans, and explain local path, URL, data URI, clipboard, and host-attachment boundaries.
 - Replaced the README's agent-facing Skills CLI command with the direct `SKILL.md` installation prompt and documented media handoff behavior.
 - Prepared the `0.1.2` package version and release notes for the tag-triggered npm publication.
+- Published `sidesight@0.1.2` from commit `130b987` through GitHub Actions run `30708949306` using npm OIDC trusted publishing.
 
 ## Validation
 
@@ -74,6 +75,14 @@
   - Result: Passed CLI root/command/subcommand help, mocked diagnose, JSON output, and safe config display scenarios.
 - Command: `pnpm test:pack`
   - Result: Passed clean temporary install, help/version, symlinked-bin help, and mocked provider command smoke checks.
+- Command: `npm publish --dry-run --access public` at version `0.1.2`
+  - Result: Passed.
+- Command: GitHub Actions run `30708949306`
+  - Result: Passed; tag `v0.1.2` built, tested, and published through OIDC trusted publishing.
+- Command: `npm view sidesight@0.1.2 version dist.tarball gitHead --json`
+  - Result: Passed; registry reports version `0.1.2`, tarball URL, and git head `130b987`.
+- Command: `npx -y sidesight@0.1.2 --version` and `npx -y sidesight@0.1.2 --help` from `/tmp`
+  - Result: Passed; clean external invocation reports `0.1.2` and the full command list.
 
 ## Files changed
 
@@ -93,7 +102,7 @@
 - Use npm OIDC trusted publishing from `.github/workflows/publish.yml`; no long-lived npm token is referenced.
 - Keep the organization workflow shape for the release smoke test: Node 24, frozen pnpm install, build, unit tests, and `npm publish` on `v*` tags.
 - The workflow emitted only a non-blocking Node 20 deprecation annotation from `pnpm/action-setup@v4); the action was forced to run on the Node 24 runner and the publish succeeded.
-- Use the repository's existing tag-triggered OIDC workflow for `0.1.2`; do not publish from a long-lived local npm token.
+- Use the repository's existing tag-triggered OIDC workflow; do not publish from a long-lived local npm token.
 
 ## Blockers
 
@@ -101,4 +110,4 @@
 
 ## Next task
 
-- Push `main` and the annotated `v0.1.2` tag, monitor the workflow, and verify the npm registry package.
+- Continue with the next versioned release when needed.
