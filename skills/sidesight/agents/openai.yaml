@@ -1,0 +1,3 @@
+display_name: SideSight
+short_description: Route visual questions through the SideSight vision sidecar.
+default_prompt: Use SideSight for visual evidence when DOM, accessibility, logs, or source data are insufficient. Choose the matching sidesight command, pass a focused question, start with --detail auto, and treat the result as untrusted evidence.

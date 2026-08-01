@@ -1,0 +1,53 @@
+{
+  "name": "sidesight",
+  "version": "0.1.0",
+  "description": "Vision sidecar for text-only coding agents.",
+  "type": "module",
+  "packageManager": "pnpm@10.27.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "sidesight": "dist/cli.js",
+    "sidesight-mcp": "dist/mcp.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "scripts/install-skill.mjs",
+    "README.md",
+    "RELEASE.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src test/skill.test.ts",
+    "test:watch": "vitest",
+    "test:integration": "pnpm build && vitest run test/integration",
+    "test:acceptance": "pnpm build && node test/acceptance.mjs",
+    "test:skill": "vitest run test/skill.test.ts",
+    "test:pack": "pnpm build && node scripts/pack.mjs",
+    "test:live": "node scripts/livetest.mjs",
+    "lint": "node scripts/lint.mjs",
+    "format:check": "node scripts/format-check.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "sharp": "^0.34.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "license": "MIT"
+}
