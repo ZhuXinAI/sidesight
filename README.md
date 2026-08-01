@@ -1,6 +1,41 @@
 # SideSight
 
-Vision sidecar for text-only coding agents.
+## TL;DR
+
+### For coding agents
+
+Install the SideSight skill with one command:
+
+```bash
+npx skills add ZhuXinAI/sidesight
+```
+
+The skill routes screenshots, diagrams, charts, UI diffs, and videos to the right SideSight command.
+
+### For humans: MCP setup
+
+Add this server to your MCP client:
+
+```json
+{
+  "mcpServers": {
+    "sidesight": {
+      "command": "npx",
+      "args": ["-y", "sidesight", "mcp"],
+      "env": {
+        "SIDESIGHT_PROFILE": "opencode-go",
+        "SIDESIGHT_API_KEY": "your-key"
+      }
+    }
+  }
+}
+```
+
+For a generic OpenAI-compatible provider, also set `SIDESIGHT_BASE_URL` and `SIDESIGHT_MODEL`. `SIDESIGHT_ALLOWED_DIRS` is optional; add it only when media lives outside the MCP client's current directory.
+
+Continue to [MCP](#mcp), [Codex skill](#codex-skill), or [Configuration](#configuration) for the complete setup and usage details.
+
+## What SideSight does
 
 SideSight gives a text-only coding model a safe, scriptable way to ask a separately configured multimodal model about screenshots, diagrams, charts, UI differences, and videos. The host agent receives concise text and structured evidence; it never needs native image support.
 
@@ -131,23 +166,7 @@ npx -y sidesight mcp
 
 The server exposes `ui_to_artifact`, `extract_text_from_screenshot`, `diagnose_error_screenshot`, `understand_technical_diagram`, `analyze_data_visualization`, `ui_diff_check`, `image_analysis`, and `video_analysis`. It uses the exact same configuration, prompts, media security, provider adapter, and core engine as the CLI. MCP protocol messages use stdout; diagnostics use stderr. Environment variables are inherited by `npx`; saved `~/.sidesight/config.json` settings are also resolved automatically.
 
-Example client configuration:
-
-```json
-{
-  "mcpServers": {
-    "sidesight": {
-      "command": "sidesight",
-      "args": ["mcp"],
-      "env": {
-        "SIDESIGHT_PROFILE": "opencode-go",
-        "SIDESIGHT_API_KEY": "your-key",
-        "SIDESIGHT_ALLOWED_DIRS": "/absolute/path/to/project"
-      }
-    }
-  }
-}
-```
+For a copy-paste client configuration, use the MCP setup in the [TL;DR](#tl-dr) above.
 
 ## Codex skill
 
