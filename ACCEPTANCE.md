@@ -44,6 +44,28 @@ These scenarios are executable through the repository scripts. Live-provider sce
 - The skill does not search files, shell profiles, keychains, environment files, or unrelated directories for credentials.
 - Local paths are preferred; raw base64 and opaque host attachment objects are rejected or exported to a path/data URI first.
 
+## Scenario: Explicit native OCR without cloud setup
+
+### Preconditions
+
+- The machine is macOS with the Swift/Xcode Command Line Tools runtime available.
+- No SideSight provider key or saved cloud setup is required.
+
+### Steps
+
+1. Run:
+   `sidesight ocr screenshot.png --provider local --format json`
+2. Capture stdout, stderr, and the mock-provider request count.
+
+### Expected
+
+- Exit code is `0`.
+- Stdout is one valid JSON object with `task: "ocr"`, `provider: "local"`, and `model: "macos-vision"`.
+- The returned answer contains the text detected by macOS Vision.
+- No cloud provider request is made and no API key is required.
+- `--offline` and `--ocr-backend system` select the same local route.
+- On a non-macOS machine, the command fails with an actionable local-backend message instead of attempting a cloud call.
+
 ## Scenario: Diagnose an error screenshot with a mocked provider
 
 ### Preconditions
@@ -77,6 +99,23 @@ These scenarios are executable through the repository scripts. Live-provider sce
 - The saved file and containing directory are owner-restricted.
 - `config show` reports that a key is configured without printing it.
 - Rerunning setup preserves omitted settings.
+
+## Scenario: Interactive provider setup walkthrough
+
+### Steps
+
+1. Run `npx sidesight setup` from a terminal.
+2. Enter a provider base URL when prompted.
+3. Enter a multimodal model identifier when prompted.
+4. Enter the API key when prompted; confirm that terminal input is masked.
+5. Run `sidesight config show`.
+
+### Expected
+
+- The command presents prompts for base URL, model, and API key in that order.
+- Existing profile, environment, and saved values are offered as defaults.
+- Pressing Enter preserves an existing value; a blank new API key remains allowed for local providers.
+- The key is persisted under the owner-only config file but is not printed in setup output or `config show`.
 
 ## Scenario: All task presets share multimodal provider behavior
 

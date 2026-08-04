@@ -21,6 +21,7 @@ const commonProperties = {
   question: { type: "string", description: "Focused visual question." },
   detail_level: { type: "string", enum: ["auto", "overview", "normal", "fine"], default: "auto" },
   region: { type: "string", description: "Optional normalized x,y,width,height region." },
+  backend: { type: "string", enum: ["cloud", "local"], description: "Use the configured cloud provider, or local macOS Vision OCR for the OCR tool." },
   thinking: { type: "boolean", description: "Request additional reasoning effort from the vision model." },
 };
 
@@ -55,6 +56,12 @@ function argumentRegion(value: unknown): NormalizedRegion | undefined {
   throw new Error("region must be a normalized x,y,width,height string or object.");
 }
 
+function argumentBackend(value: unknown): "cloud" | "local" {
+  if (value === undefined) return "cloud";
+  if (value === "cloud" || value === "local") return value;
+  throw new Error("backend must be cloud or local.");
+}
+
 export function createMcpServer(config: ResolvedConfig): Server {
   const server = new Server({ name: "sidesight", version: VERSION }, { capabilities: { tools: {} } });
   const engine = new VisionEngine(config);
@@ -75,8 +82,9 @@ export function createMcpServer(config: ResolvedConfig): Server {
       const detailResult = detailLevelSchema.safeParse(detailCandidate ?? "auto");
       if (!detailResult.success) throw new Error("detail_level must be auto, overview, normal, or fine.");
       const question = argumentString(args, "question", false);
+      const backend = argumentBackend(args.backend);
       const thinking = args.thinking === true ? "Spend additional effort checking fine visual details, while remaining grounded in visible evidence." : undefined;
-      const result = await engine.analyze({ task: spec.task, sources, question, instructions: thinking, detail: detailResult.data as DetailLevel, region: argumentRegion(args.region), onProgress: (message) => process.stderr.write(`sidesight mcp: ${message}\n`) });
+      const result = await engine.analyze({ task: spec.task, sources, backend, question, instructions: thinking, detail: detailResult.data as DetailLevel, region: argumentRegion(args.region), onProgress: (message) => process.stderr.write(`sidesight mcp: ${message}\n`) });
       return { content: [{ type: "text", text: formatMarkdown(result) }], structuredContent: result as unknown as Record<string, unknown> };
     } catch (error) {
       const safe = asSideSightError(error, config.apiKey ? [config.apiKey] : []);

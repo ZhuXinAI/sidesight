@@ -18,6 +18,9 @@ export const detailLevels = ["auto", "overview", "normal", "fine"] as const;
 export const detailLevelSchema = z.enum(detailLevels);
 export type DetailLevel = z.infer<typeof detailLevelSchema>;
 
+export const visionBackendSchema = z.enum(["cloud", "local"]);
+export type VisionBackend = z.infer<typeof visionBackendSchema>;
+
 export const regionSchema = z
   .object({
     x: z.number().finite(),
@@ -97,6 +100,7 @@ export interface VisionProvider {
 export interface VisionRequest {
   task: VisionTaskId;
   sources: string[];
+  backend?: VisionBackend;
   model?: string;
   question?: string;
   instructions?: string;

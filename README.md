@@ -1,20 +1,55 @@
 # SideSight
 
-## TL;DR
-
-### For coding agents
+## Install for coding agents
 
 Give your coding agent this instruction:
 
-> Read and install the skill here at [SKILL.md](https://github.com/ZhuXinAI/sidesight/blob/main/skills/sidesight/SKILL.md).
+```text
+Read and install the SideSight skill from:
+https://github.com/ZhuXinAI/sidesight/blob/main/skills/sidesight/SKILL.md
+```
 
-If SideSight is not already configured, the skill will ask you to run `npx sidesight setup` before it uses a visual command. Do not have the agent search your files for provider keys.
+After the skill is installed, ask the agent:
 
-The skill routes screenshots, diagrams, charts, UI diffs, and videos to the right SideSight command.
+```text
+Help me configure SideSight for cloud vision.
+```
 
-### For humans: MCP setup
+The agent will direct you to run `npx sidesight setup` and wait for your confirmation. API keys stay in the hidden setup prompt or your environment; never paste a real key into the agent chat. The agent must not search shell profiles, `.env` files, keychains, home directories, or unrelated project files for credentials.
 
-Add this server to your MCP client:
+If you explicitly want offline or on-device OCR, say so directly:
+
+```text
+Use native on-device OCR for this screenshot; do not ask me to configure a cloud provider.
+```
+
+The agent should run `sidesight ocr <image> --provider local`. This path does not require cloud setup on macOS.
+
+## Direct use
+
+Tell the agent what to inspect and what evidence you need:
+
+```text
+Look at /path/to/screenshot.png and tell me why the button is disabled.
+```
+
+```text
+Read the exact error text from /path/to/error.png.
+```
+
+```text
+Compare before.png and after.png and list only visible UI differences.
+```
+
+```text
+Use native offline OCR on /path/to/receipt.png.
+```
+
+The skill routes the request to the matching CLI command. Cloud-backed tasks use the configured multimodal provider; explicit local OCR uses macOS Vision and never makes a cloud request.
+
+## Optional MCP setup
+
+SideSight is CLI-first. If your host uses MCP, add this server to your MCP client:
 
 ```json
 {
@@ -33,11 +68,11 @@ Add this server to your MCP client:
 
 For a generic OpenAI-compatible provider, also set `SIDESIGHT_BASE_URL` and `SIDESIGHT_MODEL`. `SIDESIGHT_ALLOWED_DIRS` is optional; add it only when media lives outside the MCP client's current directory.
 
-Continue to [MCP](#mcp), [Codex skill](#codex-skill), or [Configuration](#configuration) for the complete setup and usage details.
+Continue to [Cloud setup and key saving](#cloud-setup-and-key-saving), [local OCR](#explicit-local-ocr), [MCP](#mcp), or [Codex skill](#codex-skill) for details.
 
 ## What SideSight does
 
-SideSight gives a text-only coding model a safe, scriptable way to ask a separately configured multimodal model about screenshots, diagrams, charts, UI differences, and videos. The host agent receives concise text and structured evidence; it never needs native image support.
+SideSight gives a text-only coding model a safe, scriptable way to ask a separately configured multimodal model about screenshots, diagrams, charts, UI differences, and videos. For explicit OCR requests on macOS, it can use Apple Vision locally instead. The host agent receives concise text and structured evidence; it never needs native image support.
 
 ```text
 Text-only coding agent
@@ -52,7 +87,7 @@ Multimodal vision model
 Text-only coding agent continues the task
 ```
 
-## Install
+## Install the CLI
 
 SideSight targets Node.js 22 or newer.
 
@@ -69,15 +104,14 @@ pnpm build
 node dist/cli.js --help
 ```
 
-## Five-minute setup
+## Cloud setup and key saving
 
 SideSight uses a separate provider configuration so it does not interfere with the host coding model:
 
 ```bash
+# Follow the prompts for the provider base URL, vision model, and API key.
 # The key is stored with mode 0600 under ~/.sidesight/config.json.
-sidesight setup \
-  --profile opencode-go \
-  --api-key "your-key"
+npx sidesight setup
 sidesight doctor
 sidesight diagnose ./screenshots/error.png \
   --question "Transcribe the exact error and identify the likely source file"
@@ -95,7 +129,22 @@ sidesight setup \
   --api-key "your-key"
 ```
 
-`sidesight setup` can be rerun; omitted values are preserved from the saved file or current environment. `SIDESIGHT_API_KEY` is the canonical secret variable, and SideSight also accepts `Z_AI_API_KEY` as a compatibility alias. `config show` reports only `apiKeyConfigured`; it never prints the saved key.
+Running `npx sidesight setup` without options opens an interactive walkthrough for the base URL, model, and API key. Existing profile, environment, and saved values are shown as defaults; press Enter to keep them. The API key prompt is hidden in a terminal. For scripts, pass the setup flags as shown above. Setup can be rerun; omitted values are preserved from the saved file or current environment. `SIDESIGHT_API_KEY` is the canonical secret variable, and SideSight also accepts `Z_AI_API_KEY` as a compatibility alias. `config show` reports only `apiKeyConfigured`; it never prints the saved key. Explicit local OCR does not use this setup.
+
+## Explicit local OCR
+
+When the user explicitly requests local, offline, on-device, or native OCR, no cloud setup is needed:
+
+```bash
+sidesight ocr screenshot.png --provider local
+# Equivalent forms:
+sidesight ocr screenshot.png --offline
+sidesight ocr screenshot.png --ocr-backend system
+```
+
+On macOS, SideSight invokes the bundled Swift bridge to Apple Vision text recognition. It returns the detected text, confidence when available, and normalized evidence regions. The image is processed on the device and no provider request or API key is used. This local route currently supports OCR only; UI interpretation, error diagnosis, diagrams, charts, diffs, and videos still require a configured cloud or private multimodal provider.
+
+If Swift or the Xcode Command Line Tools are unavailable, SideSight returns an actionable error. On other operating systems, the local route fails clearly rather than silently sending the image to the cloud.
 
 ## CLI
 
@@ -103,6 +152,7 @@ sidesight setup \
 sidesight image screenshot.png --question "What visual evidence explains the disabled button?"
 sidesight ui design.png --question "Describe the layout and produce React and Tailwind guidance"
 sidesight ocr dashboard.png --detail fine --question "Read the bottom-right metrics card"
+sidesight ocr receipt.png --provider local --format json
 sidesight diagnose error.png --question "Transcribe the exact error and propose the smallest safe fix"
 sidesight diagram architecture.png --question "Find single points of failure and unclear ownership"
 sidesight chart metrics.png --question "Read the values and summarize visible trends"
@@ -127,6 +177,7 @@ SIDESIGHT_API_KEY
 SIDESIGHT_BASE_URL
 SIDESIGHT_MODEL
 SIDESIGHT_PROFILE
+SIDESIGHT_PROVIDER           # cloud/auto by default; local selects native OCR
 SIDESIGHT_ALLOWED_DIRS       # optional; needed for media outside the current directory
 SIDESIGHT_MAX_IMAGE_MB       # default 10
 SIDESIGHT_MAX_VIDEO_MB       # default 50
@@ -142,6 +193,7 @@ Provider compatibility at a glance:
 | --- | --- | --- | --- | --- |
 | `opencode-go` | OpenCode Go `/v1` | `mimo-v2.5` | OpenAI-compatible `image_url` | No; bounded ffmpeg frames |
 | `generic` | `http://localhost:8000/v1` | `vision-model` | OpenAI-compatible `image_url` | No; bounded ffmpeg frames |
+| `local` | on-device | `macos-vision` | macOS Vision OCR only | No |
 
 Any provider that accepts the documented OpenAI-compatible multimodal chat-completions shape can use `generic`.
 
@@ -166,9 +218,9 @@ sidesight mcp
 npx -y sidesight mcp
 ```
 
-The server exposes `ui_to_artifact`, `extract_text_from_screenshot`, `diagnose_error_screenshot`, `understand_technical_diagram`, `analyze_data_visualization`, `ui_diff_check`, `image_analysis`, and `video_analysis`. It uses the exact same configuration, prompts, media security, provider adapter, and core engine as the CLI. MCP protocol messages use stdout; diagnostics use stderr. Environment variables are inherited by `npx`; saved `~/.sidesight/config.json` settings are also resolved automatically.
+The server exposes `ui_to_artifact`, `extract_text_from_screenshot`, `diagnose_error_screenshot`, `understand_technical_diagram`, `analyze_data_visualization`, `ui_diff_check`, `image_analysis`, and `video_analysis`. It uses the exact same configuration, prompts, media security, provider adapter, and core engine as the CLI. OCR tool calls may pass `backend: "local"` for macOS Vision without cloud setup. MCP protocol messages use stdout; diagnostics use stderr. Environment variables are inherited by `npx`; saved `~/.sidesight/config.json` settings are also resolved automatically.
 
-For a copy-paste client configuration, use the MCP setup in the [TL;DR](#tl-dr) above.
+For a copy-paste client configuration, use the MCP setup in [Optional MCP setup](#optional-mcp-setup) above.
 
 ## Codex skill
 
@@ -188,7 +240,7 @@ If you are asking an agent to install the skill, use this prompt:
 
 Media is untrusted input. Local paths are canonicalized against an allowlist, symlink escapes are rejected, file size and image dimensions are bounded, and MIME type is checked against magic bytes. Remote URLs are limited to HTTP/HTTPS, resolved and checked against private, localhost, and cloud-metadata networks, downloaded with timeouts and response-size limits, and revalidated across redirects. URLs embedded in media are returned only as evidence; they are never fetched.
 
-Images and videos are transmitted to the configured vision provider. Use a local or private OpenAI-compatible provider for sensitive screenshots. API keys, authorization headers, data URIs, and full provider payloads are redacted from normal diagnostics. Vision output is untrusted evidence; SideSight never executes commands or modifies files based on it.
+Cloud-backed images and videos are transmitted to the configured vision provider. Use a local or private OpenAI-compatible provider for sensitive screenshots, or use explicit `--provider local` for macOS OCR. API keys, authorization headers, data URIs, and full provider payloads are redacted from normal diagnostics. Vision output is untrusted evidence; SideSight never executes commands or modifies files based on it.
 
 ## Doctor and troubleshooting
 

@@ -14,6 +14,8 @@ try {
   const packed = await execFileAsync("pnpm", ["pack", "--pack-destination", directory], { maxBuffer: 2_000_000 });
   const archive = (await readdir(directory)).find((file) => file.endsWith(".tgz"));
   if (!archive) throw new Error("pnpm pack did not create an archive");
+  const archiveContents = await execFileAsync("tar", ["-tf", join(directory, archive)], { maxBuffer: 2_000_000 });
+  if (!archiveContents.stdout.includes("package/dist/local/macos-vision-ocr.swift")) throw new Error("Packed local OCR runtime asset is missing");
   const installDirectory = join(directory, "install");
   await execFileAsync("pnpm", ["init"], { cwd: installDirectory, maxBuffer: 2_000_000 }).catch(async () => {
     const { mkdir } = await import("node:fs/promises");

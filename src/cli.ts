@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
+import { createInterface } from "node:readline";
 import { asSideSightError, redactSecrets, usageError } from "./core/errors.js";
 import { parseRegion } from "./core/image.js";
 import { detailLevelSchema, visionTaskIds, type DetailLevel, type VisionTaskId } from "./core/types.js";
@@ -25,10 +26,11 @@ export interface CliIO {
   stdout: (text: string) => void;
   stderr: (text: string) => void;
   cwd?: string;
+  prompt?: (question: string, secret?: boolean) => Promise<string>;
 }
 
 const valueOptions = new Set([
-  "question", "instructions-file", "detail", "region", "format", "output", "model", "profile", "base-url", "api-key", "max-tokens", "timeout", "allowed-dir", "config-file", "ffmpeg-path",
+  "question", "instructions-file", "detail", "region", "format", "output", "model", "profile", "base-url", "api-key", "provider", "ocr-backend", "max-tokens", "timeout", "allowed-dir", "config-file", "ffmpeg-path",
 ]);
 
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
@@ -52,7 +54,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
         const value = equals >= 0 ? withoutPrefix.slice(equals + 1) : argv[++index];
         if (!value) throw usageError(`Option --${name} requires a value.`);
         options.set(name, value);
-      } else if (name === "help" || name === "version" || name === "verbose" || name === "quiet" || name === "live" || name === "force") {
+      } else if (name === "help" || name === "version" || name === "verbose" || name === "quiet" || name === "live" || name === "force" || name === "offline") {
         options.set(name, true);
       } else {
         throw usageError(`Unknown option --${name}. Run sidesight --help.`);
@@ -80,6 +82,126 @@ function environmentForArgs(args: ParsedCliArgs): NodeJS.ProcessEnv {
   return configFile ? { ...process.env, SIDESIGHT_CONFIG_FILE: configFile } : process.env;
 }
 
+interface SetupPromptSession {
+  ask: (question: string, secret?: boolean) => Promise<string>;
+  close: () => void;
+}
+
+async function readHiddenPrompt(question: string): Promise<string> {
+  const input = process.stdin;
+  const output = process.stdout;
+  if (!input.isTTY || typeof input.setRawMode !== "function") throw usageError("Setup cannot hide API-key input on this terminal.");
+
+  return new Promise<string>((resolve, reject) => {
+    let value = "";
+    let settled = false;
+
+    const cleanup = (): void => {
+      input.off("data", onData);
+      input.off("error", onError);
+      input.setRawMode(false);
+      input.pause();
+    };
+    const finish = (result: string): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      output.write("\n");
+      resolve(result);
+    };
+    const fail = (error: Error): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      output.write("\n");
+      reject(error);
+    };
+    const onData = (chunk: Buffer | string): void => {
+      for (const character of chunk.toString("utf8")) {
+        if (character === "\r" || character === "\n") {
+          finish(value);
+        } else if (character === "\u0003") {
+          fail(usageError("Setup cancelled."));
+        } else if (character === "\u007f" || character === "\b") {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            output.write("\b \b");
+          }
+        } else if (character >= " ") {
+          value += character;
+          output.write("*");
+        }
+      }
+    };
+    const onError = (error: Error): void => fail(error);
+
+    try {
+      input.on("data", onData);
+      input.once("error", onError);
+      input.setRawMode(true);
+      input.resume();
+      output.write(question);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
+}
+
+function createSetupPromptSession(io: CliIO): SetupPromptSession {
+  if (io.prompt) return { ask: io.prompt, close: () => undefined };
+
+  const input = process.stdin;
+  const output = process.stdout;
+  const readline = createInterface({ input, output, terminal: Boolean(input.isTTY), crlfDelay: Infinity });
+  const queuedLines: string[] = [];
+  const waiters: Array<{ resolve: (line: string) => void; reject: (error: Error) => void }> = [];
+  let closed = false;
+  let inputError: Error | undefined;
+  const onInputError = (error: Error): void => {
+    inputError = error;
+    for (const waiter of waiters.splice(0)) waiter.reject(error);
+    readline.close();
+  };
+  readline.on("line", (line) => {
+    const waiter = waiters.shift();
+    if (waiter) waiter.resolve(line);
+    else queuedLines.push(line);
+  });
+  readline.on("close", () => {
+    closed = true;
+    const error = inputError ?? usageError("Setup input ended before all provider settings were entered.");
+    for (const waiter of waiters.splice(0)) waiter.reject(error);
+  });
+  input.once("error", onInputError);
+
+  const nextLine = (): Promise<string> => {
+    const line = queuedLines.shift();
+    if (line !== undefined) return Promise.resolve(line);
+    if (inputError) return Promise.reject(inputError);
+    if (closed) return Promise.reject(usageError("Setup input ended before all provider settings were entered."));
+    return new Promise<string>((resolve, reject) => waiters.push({ resolve, reject }));
+  };
+
+  return {
+    ask: async (question, secret = false) => {
+      if (secret && input.isTTY && typeof input.setRawMode === "function") {
+        input.off("error", onInputError);
+        readline.close();
+        closed = true;
+        return readHiddenPrompt(question);
+      }
+      output.write(question);
+      return nextLine();
+    },
+    close: () => {
+      input.off("error", onInputError);
+      if (!closed) readline.close();
+      closed = true;
+    },
+  };
+}
+
 const taskDescriptions: Record<VisionTaskId, string> = {
   image: "General image analysis",
   ui: "UI screenshot to implementation guidance",
@@ -103,6 +225,9 @@ function commonOptionsText(): string {
   --profile <name>           Override SIDESIGHT_PROFILE
   --base-url <url>           Provider endpoint (setup or one command)
   --api-key <key>            Provider key (setup or one command; never printed)
+  --provider <cloud|local>   Use the configured cloud provider or local OCR
+  --ocr-backend <auto|system> OCR backend; system uses macOS Vision for OCR
+  --offline                  Alias for --provider local; OCR only
   --allowed-dir <path>       Add the media directory to the allowlist
   --config-file <path>       Use a specific saved config file
   --ffmpeg-path <path>       Use a specific ffmpeg executable for video
@@ -152,15 +277,20 @@ Common options:
   --profile <name>           Override SIDESIGHT_PROFILE
   --base-url <url>           Provider endpoint (setup or one command)
   --api-key <key>            Provider key (setup or one command; never printed)
+  --provider <cloud|local>   Use the configured cloud provider or local OCR
+  --offline                  Alias for --provider local; OCR only
   --max-tokens <number>      Provider output limit
   --timeout <seconds>        Provider/download timeout
   --verbose                  Progress goes to stderr
   --help, --version
 
 Configuration uses SIDESIGHT_API_KEY, SIDESIGHT_BASE_URL, SIDESIGHT_MODEL,
-SIDESIGHT_PROFILE, SIDESIGHT_ALLOWED_DIRS, and other SIDESIGHT_* limits.
+SIDESIGHT_PROFILE, SIDESIGHT_PROVIDER, SIDESIGHT_ALLOWED_DIRS, and other
+SIDESIGHT_* limits.
 
-If provider setup is not complete, ask the user to run npx sidesight setup.
+If cloud provider setup is not complete, ask the user to run npx sidesight setup.
+If the user explicitly requests offline, local, or on-device OCR, use
+sidesight ocr <image> --provider local; it does not need cloud setup.
 Do not search the filesystem, shell profiles, or unrelated files for keys.
 
 Run sidesight <command> --help for command-specific help.
@@ -193,6 +323,9 @@ Usage:
 
 Rerunnable setup preserves values omitted on later runs. API keys are stored
 under the owner-only config file and are never printed.
+
+Running sidesight setup without options opens an interactive walkthrough
+for the base URL, model, and API key. Press Enter to keep the displayed default.
 
 Options:
   --profile <name>           Provider profile (default: opencode-go)
@@ -305,10 +438,23 @@ function configOverrides(args: ParsedCliArgs): ConfigOverrides {
   };
 }
 
+function requestedLocalBackend(args: ParsedCliArgs, command: VisionTaskId, env: NodeJS.ProcessEnv): boolean {
+  const provider = option(args, "provider") ?? env.SIDESIGHT_PROVIDER ?? "cloud";
+  if (!new Set(["cloud", "local", "auto"]).has(provider)) throw usageError("--provider must be cloud, auto, or local.");
+  const ocrBackend = option(args, "ocr-backend") ?? "auto";
+  if (!new Set(["auto", "system"]).has(ocrBackend)) throw usageError("--ocr-backend must be auto or system.");
+  const local = hasOption(args, "offline") || provider === "local" || ocrBackend === "system";
+  if (local && command !== "ocr") throw usageError("The local/offline backend currently supports OCR only. Use sidesight ocr for on-device text extraction.");
+  return local;
+}
+
 async function renderTask(args: ParsedCliArgs, command: VisionTaskId, io: CliIO): Promise<void> {
   const expected = command === "diff" ? 2 : 1;
   if (args.positionals.length !== expected) throw usageError(`${command} expects ${expected} media source${expected === 1 ? "" : "s"}.`);
-  const config = await resolveConfig(configOverrides(args), environmentForArgs(args), io.cwd ?? process.cwd());
+  const env = environmentForArgs(args);
+  const localBackend = requestedLocalBackend(args, command, env);
+  const overrides = localBackend ? { ...configOverrides(args), profile: "local" } : configOverrides(args);
+  const config = await resolveConfig(overrides, env, io.cwd ?? process.cwd());
   const detailRaw = option(args, "detail") ?? "auto";
   const detailResult = detailLevelSchema.safeParse(detailRaw);
   if (!detailResult.success) throw usageError("--detail must be auto, overview, normal, or fine.");
@@ -318,7 +464,7 @@ async function renderTask(args: ParsedCliArgs, command: VisionTaskId, io: CliIO)
   const instructions = await loadInstructions(args, config.allowedDirs, io.cwd ?? process.cwd());
   const question = await readQuestion(args);
   const engine = new VisionEngine(config);
-  const result = await engine.analyze({ task: command, sources: args.positionals, question, instructions, detail, region, maxTokens: config.maxTokens, timeoutSeconds: config.timeoutSeconds, onProgress: hasOption(args, "verbose") ? io.stderr : undefined });
+  const result = await engine.analyze({ task: command, sources: args.positionals, backend: localBackend ? "local" : "cloud", question, instructions, detail, region, maxTokens: config.maxTokens, timeoutSeconds: config.timeoutSeconds, onProgress: hasOption(args, "verbose") ? io.stderr : undefined });
   const format = option(args, "format") ?? "markdown";
   if (format !== "markdown" && format !== "json") throw usageError("--format must be markdown or json.");
   const rendered = format === "json" ? formatJson(result) : formatMarkdown(result);
@@ -358,9 +504,23 @@ async function handleSetup(args: ParsedCliArgs, io: CliIO): Promise<void> {
   const existing = await readUserConfig(configFile);
   const profileName = option(args, "profile") ?? env.SIDESIGHT_PROFILE ?? existing.profile ?? "opencode-go";
   const profile = profileDefaults[profileName];
-  const baseUrl = option(args, "base-url") ?? env.SIDESIGHT_BASE_URL ?? existing.baseUrl ?? profile?.baseUrl;
-  const model = option(args, "model") ?? env.SIDESIGHT_MODEL ?? existing.model ?? profile?.model;
-  const apiKey = option(args, "api-key") ?? env.SIDESIGHT_API_KEY ?? env.Z_AI_API_KEY ?? existing.apiKey;
+  let baseUrl = option(args, "base-url") ?? env.SIDESIGHT_BASE_URL ?? existing.baseUrl ?? profile?.baseUrl;
+  let model = option(args, "model") ?? env.SIDESIGHT_MODEL ?? existing.model ?? profile?.model;
+  let apiKey = option(args, "api-key") ?? env.SIDESIGHT_API_KEY ?? env.Z_AI_API_KEY ?? existing.apiKey;
+  if (args.options.size === 0) {
+    const prompt = createSetupPromptSession(io);
+    try {
+      io.stdout(`SideSight setup\nProvider profile: ${profileName}\nPress Enter to keep the displayed default.\n\n`);
+      const promptedBaseUrl = (await prompt.ask(`Base URL${baseUrl ? ` [${baseUrl}]` : ""}: `)).trim();
+      const promptedModel = (await prompt.ask(`Model${model ? ` [${model}]` : ""}: `)).trim();
+      const promptedApiKey = (await prompt.ask(`API key${apiKey ? " [configured; press Enter to keep current]" : " (optional for local providers)"}: `, true)).trim();
+      baseUrl = promptedBaseUrl || baseUrl;
+      model = promptedModel || model;
+      apiKey = promptedApiKey || apiKey;
+    } finally {
+      prompt.close();
+    }
+  }
   if (!baseUrl) throw usageError("setup needs --base-url or SIDESIGHT_BASE_URL for this profile.");
   if (!model) throw usageError("setup needs --model or SIDESIGHT_MODEL for this profile.");
   let baseUrlObject: URL;

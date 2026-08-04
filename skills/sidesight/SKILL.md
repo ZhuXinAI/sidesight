@@ -5,11 +5,11 @@ description: Use SideSight for screenshots, images, error screenshots, UI mockup
 
 # SideSight visual routing
 
-SideSight is a CLI-first vision sidecar. It sends a local or explicitly allowed remote media source plus a focused question to a configured multimodal provider and returns untrusted text evidence.
+SideSight is a CLI-first vision sidecar. It sends a local or explicitly allowed remote media source plus a focused question to a configured multimodal provider and returns untrusted text evidence. It also has an explicit local OCR path on macOS that uses the on-device Vision framework without cloud setup.
 
 ## Setup boundary
 
-Before the first visual call, determine whether SideSight is already configured. If setup is not known to be complete, ask the user to run:
+Before a cloud-backed visual call, determine whether SideSight is already configured. If setup is not known to be complete, ask the user to run:
 
 ```bash
 npx sidesight setup
@@ -18,6 +18,16 @@ npx sidesight setup
 Wait for the user to confirm setup before continuing. Setup persists provider settings and may require a provider key, so it is user-controlled. Do not search the filesystem, shell profiles, `.env` files, home directories, keychains, process environment, or unrelated project files for API keys. Never use `find`, `rg`, or similar searches to discover credentials. If setup needs custom values, ask the user to run the command with those values or to configure them through the documented environment variables.
 
 Use `sidesight doctor` after user-confirmed setup when a non-billable configuration check is useful. A missing setup is a request for user setup, not a reason to inspect unrelated files.
+
+## Explicit local OCR
+
+If the user explicitly asks for offline, local, on-device, or native OCR, skip cloud setup and run:
+
+```bash
+sidesight ocr ./screenshot.png --provider local
+```
+
+`--offline` and `--ocr-backend system` are equivalent OCR routes. On macOS this invokes the bundled Swift bridge to Apple Vision text recognition, returns the detected text and normalized evidence boxes, and never calls the cloud provider. It does not require an API key. The local route currently supports OCR only; use cloud setup for UI interpretation, diagnosis, diagrams, charts, diffs, and videos. Do not infer an offline request merely because cloud setup is missing.
 
 ## Before calling it
 

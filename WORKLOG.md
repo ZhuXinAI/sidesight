@@ -2,9 +2,9 @@
 
 ## Current status
 
-- Current phase: v0.1.2 release complete
-- Current task: None; the trusted-publisher workflow and registry package are verified
-- Overall status: `sidesight@0.1.2` is published and the tag-triggered GitHub Actions workflow succeeded
+- Current phase: explicit native OCR fallback complete
+- Current task: None; cloud setup UX and explicit macOS local OCR are implemented and verified
+- Overall status: `sidesight@0.1.2` remains published; the working tree adds a provider-independent local OCR route and agent-first README flow
 
 ## Completed
 
@@ -24,6 +24,11 @@
 - Replaced the README's agent-facing Skills CLI command with the direct `SKILL.md` installation prompt and documented media handoff behavior.
 - Prepared the `0.1.2` package version and release notes for the tag-triggered npm publication.
 - Published `sidesight@0.1.2` from commit `130b987` through GitHub Actions run `30708949306` using npm OIDC trusted publishing.
+- Made bare `npx sidesight setup` walk through base URL, model, and API key prompts; flag-bearing setup remains non-interactive for automation.
+- Reviewed `oil-oil/see-skill` README, skill, onboarding flow, and macOS Vision bridge; adopted its agent-first setup conversation while preserving SideSight's CLI/core/MCP architecture.
+- Added explicit `--provider local`, `--offline`, and `--ocr-backend system` OCR routing through the shared engine; local OCR never calls the cloud provider and does not require a saved key.
+- Added the bundled `src/local/macos-vision-ocr.swift` bridge, secure temporary input handling, schema-validated OCR output, normalized evidence mapping, and actionable Swift/runtime errors.
+- Updated the README and Agent Skill with the install prompt, direct agent usage examples, cloud setup boundary, and explicit local OCR exception.
 
 ## Validation
 
@@ -61,18 +66,20 @@
   - Result: Passed; registry reports version `0.1.1`, tarball URL, and git head `c1ddb97`.
 - Command: `pnpm test:live`
   - Result: Explicitly skipped because live-provider opt-in and credentials were not supplied.
+- Command: focused interactive setup unit test
+  - Result: Passed; prompt order, hidden API-key intent, secure persistence, and secret redaction are covered.
 - Command: `pnpm install --frozen-lockfile`
   - Result: Passed.
 - Command: `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`
   - Result: Passed.
 - Command: `pnpm test`
-  - Result: 19 unit tests passed, including command/subcommand help and data-URI input coverage.
+  - Result: 20 unit tests passed, including command/subcommand help and interactive setup coverage.
 - Command: `pnpm build`
   - Result: Passed.
 - Command: `pnpm test:integration`
   - Result: 3 mocked integration tests passed.
 - Command: `pnpm test:acceptance`
-  - Result: Passed CLI root/command/subcommand help, mocked diagnose, JSON output, and safe config display scenarios.
+  - Result: Passed CLI root/command/subcommand help, mocked diagnose, JSON output, interactive setup, and safe config display scenarios.
 - Command: `pnpm test:pack`
   - Result: Passed clean temporary install, help/version, symlinked-bin help, and mocked provider command smoke checks.
 - Command: `npm publish --dry-run --access public` at version `0.1.2`
@@ -83,6 +90,20 @@
   - Result: Passed; registry reports version `0.1.2`, tarball URL, and git head `130b987`.
 - Command: `npx -y sidesight@0.1.2 --version` and `npx -y sidesight@0.1.2 --help` from `/tmp`
   - Result: Passed; clean external invocation reports `0.1.2` and the full command list.
+- Command: pseudo-TTY setup smoke test
+  - Result: Passed; base URL/model input is echoed, API-key input is masked, and the dummy key is absent from the terminal transcript.
+- Command: `pnpm test:pack` after the interactive setup change
+  - Result: Passed clean tarball installation, symlinked-bin help, and mocked provider command smoke checks.
+- Command: `pnpm typecheck`
+  - Result: Passed with no TypeScript errors after the local OCR route.
+- Command: `pnpm vitest run src/local/ocr.test.ts src/cli.test.ts test/skill.test.ts`
+  - Result: Passed; 9 focused tests covered local routing, no cloud invocation, crop evidence mapping, help, and skill guidance.
+- Command: `pnpm build`
+  - Result: Passed; `dist/local/macos-vision-ocr.swift` is copied as a runtime asset.
+- Command: `pnpm test:acceptance`
+  - Result: Passed; real macOS Vision OCR, offline aliases, no-provider-request behavior, mocked cloud diagnosis, and setup flows verified.
+- Command: `pnpm test:pack`
+  - Result: Passed; clean package install verified and tarball inspection confirmed the local OCR runtime asset.
 
 ## Files changed
 
@@ -90,7 +111,7 @@
 - `skills/`, `.agents/`, and skill installer.
 - `scripts/` build, lint, format, acceptance, live, and packaging checks.
 - `README.md`, `TASKS.md`, `ACCEPTANCE.md`, `WORKLOG.md`, and package metadata.
-- `src/cli.ts`, `src/cli.test.ts`, `src/core/core.test.ts`, `scripts/pack.mjs`, `skills/sidesight/SKILL.md`, and the CLI/skill acceptance coverage.
+- `src/local/macos-vision-ocr.swift`, `src/local/ocr.ts`, `src/local/ocr.test.ts`, `src/core/engine.ts`, `src/core/types.ts`, `src/core/errors.ts`, `src/config.ts`, `src/cli.ts`, `src/cli.test.ts`, `scripts/build.mjs`, `scripts/pack.mjs`, `skills/sidesight/SKILL.md`, and the CLI/skill acceptance coverage.
 
 ## Decisions
 
@@ -103,6 +124,8 @@
 - Keep the organization workflow shape for the release smoke test: Node 24, frozen pnpm install, build, unit tests, and `npm publish` on `v*` tags.
 - The workflow emitted only a non-blocking Node 20 deprecation annotation from `pnpm/action-setup@v4); the action was forced to run on the Node 24 runner and the publish succeeded.
 - Use the repository's existing tag-triggered OIDC workflow; do not publish from a long-lived local npm token.
+- Keep native OCR opt-in and narrow: explicit local/offline/system requests use macOS Vision for OCR only; missing setup must not silently downgrade richer visual tasks.
+- Keep the Swift bridge as a packaged runtime asset and invoke it with `execFile` plus a restricted environment; never pass cloud credentials or shell-expanded media paths to it.
 
 ## Blockers
 
@@ -110,4 +133,4 @@
 
 ## Next task
 
-- Continue with the next versioned release when needed.
+- No follow-up task for this scope; live cloud-provider checks remain opt-in.

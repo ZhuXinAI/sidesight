@@ -14,6 +14,12 @@ describe("CLI parser", () => {
     expect(parseCliArgs(["setup", "--base_url", "http://127.0.0.1/v1"]).options.get("base-url")).toBe("http://127.0.0.1/v1");
   });
 
+  it("accepts explicit local OCR routing", () => {
+    const parsed = parseCliArgs(["ocr", "screenshot.png", "--provider", "local", "--offline"]);
+    expect(parsed.options.get("provider")).toBe("local");
+    expect(parsed.options.get("offline")).toBe(true);
+  });
+
   it("prints useful help without configuration", async () => {
     let output = "";
     const code = await runCli(["--help"], { stdout: (text) => { output += text; }, stderr: () => undefined });
@@ -40,6 +46,11 @@ describe("CLI parser", () => {
       expect(code, testCase.argv.join(" ")).toBe(0);
       expect(output, testCase.argv.join(" ")).toContain(testCase.expected);
     }
+    let localHelp = "";
+    const localCode = await runCli(["ocr", "--help"], { stdout: (text) => { localHelp += text; }, stderr: () => undefined });
+    expect(localCode).toBe(0);
+    expect(localHelp).toContain("--provider <cloud|local>");
+    expect(localHelp).toContain("--offline");
   });
 
   it("persists setup settings securely and supports rerunning with partial updates", async () => {
@@ -60,6 +71,39 @@ describe("CLI parser", () => {
       expect(second).toBe(0);
       const secondConfig = JSON.parse(await readFile(configFile, "utf8")) as { baseUrl: string; model: string; apiKey: string };
       expect(secondConfig).toMatchObject({ baseUrl: "http://127.0.0.1:8000/v1", model: "vision-updated", apiKey: "setup-secret" });
+    } finally {
+      process.env = originalEnvironment;
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("walks through base URL, model, and API key when setup has no options", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "sidesight-interactive-"));
+    const configFile = join(directory, "config.json");
+    const originalEnvironment = { ...process.env };
+    for (const key of ["SIDESIGHT_API_KEY", "Z_AI_API_KEY", "SIDESIGHT_PROFILE", "SIDESIGHT_BASE_URL", "SIDESIGHT_MODEL", "SIDESIGHT_CONFIG_FILE", "SIDESIGHT_CONFIG_DIR"]) delete process.env[key];
+    process.env.SIDESIGHT_CONFIG_FILE = configFile;
+    try {
+      const prompts: Array<{ question: string; secret: boolean }> = [];
+      const answers = ["http://127.0.0.1:8000/v1", "interactive-vision", "interactive-secret"];
+      let output = "";
+      const code = await runCli(["setup"], {
+        stdout: (text) => { output += text; },
+        stderr: () => undefined,
+        prompt: async (question, secret = false) => {
+          prompts.push({ question, secret });
+          const answer = answers.shift();
+          if (answer === undefined) throw new Error("test prompt answer missing");
+          return answer;
+        },
+      });
+      expect(code).toBe(0);
+      expect(prompts.map((prompt) => prompt.question.split(" ")[0])).toEqual(["Base", "Model", "API"]);
+      expect(prompts[2]?.secret).toBe(true);
+      expect(output).toContain("Provider profile: opencode-go");
+      expect(output).not.toContain("interactive-secret");
+      const saved = JSON.parse(await readFile(configFile, "utf8")) as { baseUrl: string; model: string; apiKey: string };
+      expect(saved).toEqual({ profile: "opencode-go", baseUrl: "http://127.0.0.1:8000/v1", model: "interactive-vision", apiKey: "interactive-secret" });
     } finally {
       process.env = originalEnvironment;
       await rm(directory, { recursive: true, force: true });

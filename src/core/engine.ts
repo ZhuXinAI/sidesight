@@ -6,6 +6,7 @@ import { loadImages, loadVideo } from "./media.js";
 import { providerError, usageError } from "./errors.js";
 import { safeMediaLabel } from "./security.js";
 import { framesToProviderImages, sampleVideoFrames } from "./video.js";
+import { analyzeLocalOcr, runMacOsVisionOcr, type LocalOcrRunner } from "../local/ocr.js";
 import type {
   LoadedImage,
   NormalizedRegion,
@@ -60,7 +61,7 @@ export class VisionEngine {
   readonly provider: VisionProvider;
   private readonly config: ResolvedConfig;
 
-  constructor(config: ResolvedConfig, provider: VisionProvider = createProvider(config)) {
+  constructor(config: ResolvedConfig, provider: VisionProvider = createProvider(config), private readonly localOcrRunner: LocalOcrRunner = runMacOsVisionOcr) {
     this.config = config;
     this.provider = provider;
   }
@@ -70,6 +71,7 @@ export class VisionEngine {
     const expectedSourceCount = request.task === "diff" ? 2 : 1;
     if (request.sources.length !== expectedSourceCount) throw usageError(`${request.task} expects ${expectedSourceCount} media source${expectedSourceCount === 1 ? "" : "s"}.`);
     if (request.sources.length > Math.min(definition.maxImages, this.config.maxImages) && request.task !== "video") throw usageError(`${request.task} accepts at most ${Math.min(definition.maxImages, this.config.maxImages)} images.`);
+    if (request.backend === "local") return analyzeLocalOcr(request, this.config, this.localOcrRunner);
     if (request.task === "video") return this.analyzeVideo(request);
     return this.analyzeImages(request);
   }

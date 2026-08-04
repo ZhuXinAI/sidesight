@@ -3,6 +3,7 @@ export type SideSightErrorCode =
   | "CONFIG_ERROR"
   | "SECURITY_ERROR"
   | "MEDIA_ERROR"
+  | "LOCAL_BACKEND_ERROR"
   | "PROVIDER_ERROR"
   | "TEXT_ONLY_MODEL"
   | "MCP_ERROR"
@@ -40,6 +41,10 @@ export function securityError(message: string, cause?: unknown): SideSightError 
 
 export function mediaError(message: string, cause?: unknown): SideSightError {
   return new SideSightError("MEDIA_ERROR", message, { cause });
+}
+
+export function localBackendError(message: string, cause?: unknown): SideSightError {
+  return new SideSightError("LOCAL_BACKEND_ERROR", message, { cause });
 }
 
 export function providerError(message: string, cause?: unknown, code: "PROVIDER_ERROR" | "TEXT_ONLY_MODEL" = "PROVIDER_ERROR"): SideSightError {

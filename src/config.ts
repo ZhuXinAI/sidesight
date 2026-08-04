@@ -24,6 +24,12 @@ export const profileDefaults: Record<string, ProfileDefaults> = {
     model: "vision-model",
     supportsNativeVideo: false,
   },
+  local: {
+    name: "local",
+    baseUrl: "http://local.invalid",
+    model: "macos-vision",
+    supportsNativeVideo: false,
+  },
 };
 
 export interface UserConfigFile {
