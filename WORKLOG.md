@@ -2,9 +2,9 @@
 
 ## Current status
 
-- Current phase: explicit native OCR fallback complete
+- Current phase: v0.1.3 release complete
 - Current task: None; cloud setup UX and explicit macOS local OCR are implemented and verified
-- Overall status: `sidesight@0.1.2` remains published; the working tree adds a provider-independent local OCR route and agent-first README flow
+- Overall status: `sidesight@0.1.3` is published from the validated native OCR and agent-first setup release
 
 ## Completed
 
@@ -29,6 +29,7 @@
 - Added explicit `--provider local`, `--offline`, and `--ocr-backend system` OCR routing through the shared engine; local OCR never calls the cloud provider and does not require a saved key.
 - Added the bundled `src/local/macos-vision-ocr.swift` bridge, secure temporary input handling, schema-validated OCR output, normalized evidence mapping, and actionable Swift/runtime errors.
 - Updated the README and Agent Skill with the install prompt, direct agent usage examples, cloud setup boundary, and explicit local OCR exception.
+- Prepared and published `sidesight@0.1.3` from commit `915dc1c` with annotated tag `v0.1.3`; GitHub Actions run `30911042716` completed the OIDC npm publication.
 
 ## Validation
 
@@ -104,6 +105,14 @@
   - Result: Passed; real macOS Vision OCR, offline aliases, no-provider-request behavior, mocked cloud diagnosis, and setup flows verified.
 - Command: `pnpm test:pack`
   - Result: Passed; clean package install verified and tarball inspection confirmed the local OCR runtime asset.
+- Command: `npm publish --dry-run --access public` at version `0.1.3`
+  - Result: Passed; tarball contains the local OCR runtime asset and package metadata for `0.1.3`.
+- Command: GitHub Actions run `30911042716`
+  - Result: Passed; tag `v0.1.3` installed dependencies, built, ran unit tests, and published through OIDC trusted publishing.
+- Command: `npm view sidesight@0.1.3 version dist.tarball gitHead --json`
+  - Result: Passed; registry reports version `0.1.3`, the release tarball, and git head `915dc1c`.
+- Command: `npx -y sidesight@0.1.3 --version` and `npx -y sidesight@0.1.3 --help` from `/tmp`
+  - Result: Passed; clean external invocation reports `0.1.3` and the local/offline OCR setup guidance.
 
 ## Files changed
 
